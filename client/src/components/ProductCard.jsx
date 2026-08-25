@@ -8,19 +8,23 @@ const item = {
 }
 
 export default function ProductCard({ product }) {
+  const image = product.images?.[0]
+
   return (
     <motion.div variants={item}>
       <Link to={`/products/${product.slug}`} className="product-card">
         <div className="product-card__image">
-          {product.imageUrl ? (
-            <img src={product.imageUrl} alt={product.name} />
-          ) : (
-            <div className="product-card__placeholder" />
-          )}
+          {image ? <img src={image.url} alt={product.name} /> : <div className="product-card__placeholder" />}
+          {product.promotion && <span className="promo-badge product-card__badge">-{product.promotion.discountPercent}%</span>}
         </div>
         <p className="product-card__category">{product.category.name}</p>
         <h3 className="product-card__name">{product.name}</h3>
-        <p className="product-card__price">{formatPrice(product.priceCents)}</p>
+        <div className="price-row">
+          <p className="product-card__price">{formatPrice(product.priceCents)}</p>
+          {product.compareAtPriceCents && (
+            <span className="price-original">{formatPrice(product.compareAtPriceCents)}</span>
+          )}
+        </div>
       </Link>
     </motion.div>
   )

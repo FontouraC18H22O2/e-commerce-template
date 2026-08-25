@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { BagIcon } from './icons/index.jsx'
+import CategoryNav from './CategoryNav.jsx'
+import SearchBar from './SearchBar.jsx'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -16,14 +18,18 @@ export default function Navbar() {
 
   return (
     <header className="navbar">
-      <Link to="/" className="navbar__logo">
-        Loja
-      </Link>
+      <div className="navbar__left">
+        <Link to="/" className="navbar__logo">
+          Loja
+        </Link>
+        <CategoryNav />
+      </div>
+
+      <SearchBar />
 
       <nav className="navbar__links">
         <Link to="/cart" className="navbar__link">
           <BagIcon />
-          Carrinho
           <AnimatePresence>
             {totalCount > 0 && (
               <motion.span

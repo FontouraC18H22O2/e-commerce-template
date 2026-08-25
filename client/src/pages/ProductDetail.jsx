@@ -4,12 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { api } from '../services/api.js'
 import { useCart } from '../context/CartContext.jsx'
 import { formatPrice } from '../utils/format.js'
+import ProductGallery from '../components/ProductGallery.jsx'
+import RelatedProducts from '../components/RelatedProducts.jsx'
 
 export default function ProductDetail() {
   const { slug } = useParams()
   const { addItem } = useCart()
 
   const [product, setProduct] = useState(null)
+  const [relatedProducts, setRelatedProducts] = useState([])
   const [quantity, setQuantity] = useState(1)
   const [notFound, setNotFound] = useState(false)
   const [added, setAdded] = useState(false)
@@ -18,10 +21,14 @@ export default function ProductDetail() {
     setProduct(null)
     setNotFound(false)
     setAdded(false)
+    setQuantity(1)
 
     api
       .get(`/products/${slug}`)
-      .then((data) => setProduct(data.product))
+      .then((data) => {
+        setProduct(data.product)
+        setRelatedProducts(data.relatedProducts)
+      })
       .catch((err) => {
         if (err.status === 404) setNotFound(true)
       })
@@ -44,66 +51,72 @@ export default function ProductDetail() {
   }
 
   return (
-    <motion.div
-      className="product-detail"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-    >
-      <div className="product-detail__image">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} />
-        ) : (
-          <div className="product-card__placeholder" />
-        )}
-      </div>
+    <div>
+      <motion.div
+        className="product-detail"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <ProductGallery images={product.images} name={product.name} />
 
-      <div>
-        <p className="product-detail__category">{product.category.name}</p>
-        <h1>{product.name}</h1>
-        <p className="product-detail__price">{formatPrice(product.priceCents)}</p>
-        <p>{product.description}</p>
+        <div>
+          <p className="product-detail__category">{product.category.name}</p>
+          <h1>{product.name}</h1>
 
-        {product.stock > 0 ? (
-          <p className="product-detail__stock">Em stock: {product.stock} unidades</p>
-        ) : (
-          <p className="form-alert" role="alert">Esgotado</p>
-        )}
+          <div className="price-row">
+            <p className="product-detail__price">{formatPrice(product.priceCents)}</p>
+            {product.compareAtPriceCents && (
+              <span className="price-original">{formatPrice(product.compareAtPriceCents)}</span>
+            )}
+            {product.promotion && <span className="promo-badge">-{product.promotion.discountPercent}%</span>}
+          </div>
 
-        <div className="product-detail__actions">
-          <input
-            className="input"
-            type="number"
-            min="1"
-            max={product.stock}
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            disabled={product.stock === 0}
-          />
-          <motion.button
-            type="button"
-            className="btn"
-            onClick={handleAddToCart}
-            disabled={product.stock === 0}
-            whileTap={{ scale: 0.96 }}
-          >
-            Adicionar ao carrinho
-          </motion.button>
-        </div>
+          <p>{product.description}</p>
 
-        <AnimatePresence>
-          {added && (
-            <motion.p
-              className="product-detail__added"
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-            >
-              Adicionado ao carrinho. <Link to="/cart" style={{ textDecoration: 'underline' }}>Ver carrinho</Link>
-            </motion.p>
+          {product.stock > 0 ? (
+            <p className="product-detail__stock">Em stock: {product.stock} unidades</p>
+          ) : (
+            <p className="form-alert" role="alert">Esgotado</p>
           )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
+
+          <div className="product-detail__actions">
+            <input
+              className="input"
+              type="number"
+              min="1"
+              max={product.stock}
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value))}
+              disabled={product.stock === 0}
+            />
+            <motion.button
+              type="button"
+              className="btn"
+              onClick={handleAddToCart}
+              disabled={product.stock === 0}
+              whileTap={{ scale: 0.96 }}
+            >
+              Adicionar ao carrinho
+            </motion.button>
+          </div>
+
+          <AnimatePresence>
+            {added && (
+              <motion.p
+                className="product-detail__added"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+              >
+                Adicionado ao carrinho. <Link to="/cart" style={{ textDecoration: 'underline' }}>Ver carrinho</Link>
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+      <RelatedProducts products={relatedProducts} />
+    </div>
   )
 }

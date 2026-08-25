@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { api } from '../services/api.js'
 import ProductCard from '../components/ProductCard.jsx'
-import { SearchIcon } from '../components/icons/index.jsx'
+import PromoBanner from '../components/PromoBanner.jsx'
+import FeaturedSection from '../components/FeaturedSection.jsx'
 
 const gridVariants = {
   hidden: {},
@@ -10,20 +12,36 @@ const gridVariants = {
 }
 
 export default function Home() {
-  const [categories, setCategories] = useState([])
+  const [searchParams] = useSearchParams()
+  // category e search são controlados pela navbar (dropdown de categorias e
+  // barra de pesquisa) e chegam aqui via querystring — esta página só lê.
+  const category = searchParams.get('category') ?? ''
+  const search = searchParams.get('search') ?? ''
+
   const [products, setProducts] = useState([])
   const [pagination, setPagination] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('')
   const [sort, setSort] = useState('newest')
   const [page, setPage] = useState(1)
+  const [categoryName, setCategoryName] = useState('')
 
   useEffect(() => {
-    api.get('/categories').then((data) => setCategories(data.categories))
-  }, [])
+    if (!category) {
+      setCategoryName('')
+      return
+    }
+    api.get('/categories').then((data) => {
+      const match = data.categories.find((c) => c.slug === category)
+      setCategoryName(match?.name ?? category)
+    })
+  }, [category])
+
+  // Sempre que a categoria/pesquisa mudam (navegação a partir da navbar),
+  // a paginação volta ao início.
+  useEffect(() => {
+    setPage(1)
+  }, [category, search])
 
   useEffect(() => {
     setLoading(true)
@@ -43,54 +61,29 @@ export default function Home() {
       .finally(() => setLoading(false))
   }, [search, category, sort, page])
 
-  function handleSearchSubmit(e) {
-    e.preventDefault()
-    setPage(1)
-    setSearch(e.target.elements.search.value.trim())
-  }
+  const showIntro = !category && !search
 
   return (
     <div className="home">
-      <motion.div
-        className="home__intro"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <p className="eyebrow">Catálogo</p>
-        <h1>Peças pensadas para durar</h1>
-        <p style={{ color: 'var(--color-ink-soft)' }}>
-          Uma seleção variada, do vestuário à tecnologia — sem barulho, só o essencial.
-        </p>
-      </motion.div>
+      {showIntro && (
+        <>
+          <PromoBanner />
+          <FeaturedSection />
+        </>
+      )}
 
       <div className="home__filters">
-        <form onSubmit={handleSearchSubmit} className="home__search">
-          <SearchIcon />
-          <input name="search" type="search" placeholder="Pesquisar produtos..." defaultValue={search} />
-        </form>
-
-        <select
-          value={category}
-          onChange={(e) => {
-            setPage(1)
-            setCategory(e.target.value)
-          }}
-        >
-          <option value="">Todas as categorias</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.slug}>
-              {cat.name} ({cat._count.products})
-            </option>
-          ))}
-        </select>
+        <div>
+          <p className="eyebrow">{category ? 'Categoria' : search ? 'Pesquisa' : 'Catálogo'}</p>
+          <h1 style={{ marginBottom: 0 }}>
+            {category ? categoryName : search ? `Resultados para "${search}"` : 'Todos os produtos'}
+          </h1>
+        </div>
 
         <select
           value={sort}
-          onChange={(e) => {
-            setPage(1)
-            setSort(e.target.value)
-          }}
+          onChange={(e) => setSort(e.target.value)}
+          style={{ marginLeft: 'auto' }}
         >
           <option value="newest">Mais recentes</option>
           <option value="price_asc">Preço: mais baixo</option>
