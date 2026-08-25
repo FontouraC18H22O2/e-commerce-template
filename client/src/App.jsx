@@ -10,6 +10,7 @@ import Cart from './pages/Cart.jsx'
 import Checkout from './pages/Checkout.jsx'
 import OrderConfirmation from './pages/OrderConfirmation.jsx'
 import Orders from './pages/Orders.jsx'
+import Profile from './pages/Profile.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import AdminLayout from './pages/admin/AdminLayout.jsx'
@@ -61,6 +62,16 @@ function App() {
               }
             />
             <Route path="/orders/confirmation" element={<PageTransition><OrderConfirmation /></PageTransition>} />
+            <Route
+              path="/profile"
+              element={
+                <PageTransition>
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                </PageTransition>
+              }
+            />
             <Route
               path="/orders"
               element={

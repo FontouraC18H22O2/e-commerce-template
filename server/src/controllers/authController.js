@@ -1,4 +1,12 @@
-import { registerUser, verifyCredentials, toPublicUser } from '../services/authService.js'
+import prisma from '../lib/prismaClient.js'
+import {
+  registerUser,
+  verifyCredentials,
+  toPublicUser,
+  updateProfile,
+  changeEmail,
+  changePassword,
+} from '../services/authService.js'
 
 export async function register(req, res, next) {
   try {
@@ -40,6 +48,47 @@ export function me(req, res) {
       role: req.session.role,
     },
   })
+}
+
+// O /me devolve só os campos cacheados na sessão (rápido, sem ir à BD) —
+// para os dados completos do perfil (morada, telefone...), o /profile
+// abaixo vai mesmo à BD, porque esses campos não vivem na sessão.
+export async function getProfile(req, res, next) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.session.userId } })
+    res.json({ user: toPublicUser(user) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function putProfile(req, res, next) {
+  try {
+    const user = await updateProfile(req.session.userId, req.body)
+    req.session.name = user.name
+    res.json({ user: toPublicUser(user) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function putEmail(req, res, next) {
+  try {
+    const user = await changeEmail(req.session.userId, req.body)
+    req.session.email = user.email
+    res.json({ user: toPublicUser(user) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function putPassword(req, res, next) {
+  try {
+    await changePassword(req.session.userId, req.body)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
 }
 
 // Regenera o id de sessão antes de a preencher — evita "session fixation"

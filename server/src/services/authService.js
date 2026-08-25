@@ -50,5 +50,52 @@ export function toPublicUser(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    phone: user.phone,
+    address: user.address,
+    city: user.city,
+    postalCode: user.postalCode,
+    country: user.country,
   }
+}
+
+// Campos de perfil "inofensivos" — não passam por password nenhuma,
+// porque não dão acesso a mais nada (ao contrário de email/password).
+export async function updateProfile(userId, data) {
+  // "" nos campos opcionais do formulário vira null na BD, não uma string
+  // vazia — mais limpo para as queries e para o frontend distinguir
+  // "por preencher" de "preenchido com nada".
+  const cleaned = Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [key, value === '' ? null : value]),
+  )
+
+  const user = await prisma.user.update({ where: { id: userId }, data: cleaned })
+  return user
+}
+
+export async function changeEmail(userId, { newEmail, currentPassword }) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+
+  const isValid = await argon2.verify(user.passwordHash, currentPassword)
+  if (!isValid) {
+    throw new AuthError('Password incorreta', 401)
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email: newEmail } })
+  if (existing && existing.id !== userId) {
+    throw new AuthError('Este email já está a ser usado por outra conta', 409)
+  }
+
+  return prisma.user.update({ where: { id: userId }, data: { email: newEmail } })
+}
+
+export async function changePassword(userId, { currentPassword, newPassword }) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+
+  const isValid = await argon2.verify(user.passwordHash, currentPassword)
+  if (!isValid) {
+    throw new AuthError('Password atual incorreta', 401)
+  }
+
+  const passwordHash = await argon2.hash(newPassword)
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } })
 }

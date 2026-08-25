@@ -53,10 +53,12 @@ export default function Navbar() {
             </Link>
             {user.role === 'ADMIN' && (
               <Link to="/admin" className="navbar__link">
-                Admin
+                Painel admin
               </Link>
             )}
-            <span className="navbar__user">{user.name}</span>
+            <Link to="/profile" className="navbar__user">
+              Olá, {user.name}
+            </Link>
             <button type="button" className="btn--text" onClick={handleLogout}>
               Sair
             </button>

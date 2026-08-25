@@ -926,6 +926,32 @@ select:focus {
   border-top: 1px solid var(--color-border);
 }
 
+/* --- Perfil --- */
+
+.profile {
+  max-width: 560px;
+}
+
+.profile__section {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--color-border);
+}
+
+.profile__section:first-of-type {
+  margin-top: 24px;
+}
+
+.profile__section h2 {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+
+.profile__success {
+  font-size: 0.85rem;
+  color: var(--color-success);
+}
+
 /* --- Admin --- */
 
 .page--admin {

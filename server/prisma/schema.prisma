@@ -28,6 +28,13 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
+  // Dados de perfil/morada — todos opcionais, preenchidos na página de
+  // perfil (não pedidos no registo, para o manter rápido).
+  phone        String?
+  address      String?
+  city         String?
+  postalCode   String?
+  country      String?
   role         Role     @default(CUSTOMER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

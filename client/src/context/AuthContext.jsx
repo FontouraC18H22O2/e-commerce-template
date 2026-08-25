@@ -35,8 +35,14 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  // Usado pela página de perfil depois de editar nome/email, para a navbar
+  // e o resto da app refletirem a mudança sem precisar de recarregar.
+  const updateUser = useCallback((partial) => {
+    setUser((prev) => (prev ? { ...prev, ...partial } : prev))
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )
