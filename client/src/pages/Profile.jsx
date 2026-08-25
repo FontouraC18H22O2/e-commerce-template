@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { api } from '../services/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import PasswordInput from '../components/PasswordInput.jsx'
 
 const emptyProfile = { name: '', phone: '', address: '', city: '', postalCode: '', country: '' }
 
@@ -190,10 +191,9 @@ export default function Profile() {
           </div>
           <div className="field">
             <label htmlFor="emailPassword">Password atual (para confirmar)</label>
-            <input
+            <PasswordInput
               id="emailPassword"
               className="input"
-              type="password"
               required
               value={emailPassword}
               onChange={(e) => setEmailPassword(e.target.value)}
@@ -219,10 +219,9 @@ export default function Profile() {
         <form onSubmit={handlePasswordSubmit} className="admin-form">
           <div className="field">
             <label htmlFor="currentPassword">Password atual</label>
-            <input
+            <PasswordInput
               id="currentPassword"
               className="input"
-              type="password"
               required
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
@@ -230,10 +229,9 @@ export default function Profile() {
           </div>
           <div className="field">
             <label htmlFor="newPassword">Nova password</label>
-            <input
+            <PasswordInput
               id="newPassword"
               className="input"
-              type="password"
               required
               minLength={8}
               value={newPassword}

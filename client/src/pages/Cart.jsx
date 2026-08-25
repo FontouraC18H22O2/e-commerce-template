@@ -41,6 +41,9 @@ export default function Cart() {
               exit={{ opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0 }}
               transition={{ duration: 0.25 }}
             >
+              <Link to={`/products/${item.slug}`} className="cart__item-thumb">
+                {item.imageUrl ? <img src={item.imageUrl} alt="" /> : <div className="product-card__placeholder" />}
+              </Link>
               <Link to={`/products/${item.slug}`} className="cart__item-name">
                 {item.name}
               </Link>

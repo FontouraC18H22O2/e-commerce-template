@@ -32,9 +32,12 @@ const productInclude = {
   ...pricingInclude,
 }
 
-// Achata o produto do Prisma para o formato que a API expõe: preço já
-// calculado com promoção (se houver), imagens ordenadas, categoria só com
-// o essencial.
+// Achata o produto do Prisma para o formato que a API pública expõe: preço
+// já calculado com promoção (se houver), imagens ordenadas, categoria só
+// com o essencial. Repara que NÃO devolve a quantidade exata de stock —
+// só se está ou não disponível. O número exato só é visível no admin
+// (listProductsForAdmin/getProductForAdmin, que devolvem o produto "em
+// bruto" do Prisma, sem passar por aqui).
 function serializeProduct(product, now = new Date()) {
   const { priceCents, compareAtPriceCents, promotion } = computeEffectivePrice(product, now)
 
@@ -43,7 +46,10 @@ function serializeProduct(product, now = new Date()) {
     name: product.name,
     slug: product.slug,
     description: product.description,
-    stock: product.stock,
+    brand: product.brand,
+    model: product.model,
+    colors: product.colors,
+    inStock: product.stock > 0,
     featured: product.featured,
     priceCents,
     compareAtPriceCents,
@@ -168,6 +174,16 @@ export async function getProductForAdmin(id) {
 
 // --- operações de escrita (só para o painel de admin) ---
 
+// "" nos campos opcionais (brand/model) vira null na BD — mais correto do
+// que guardar uma string vazia como se fosse um valor real.
+function cleanOptionalStrings(data) {
+  const clone = { ...data }
+  for (const key of ['brand', 'model']) {
+    if (clone[key] === '') clone[key] = null
+  }
+  return clone
+}
+
 export async function createProduct(data) {
   const category = await prisma.category.findUnique({ where: { id: data.categoryId } })
   if (!category) {
@@ -179,12 +195,13 @@ export async function createProduct(data) {
     throw new ConflictError('Já existe um produto com este slug')
   }
 
-  const product = await prisma.product.create({ data, include: productInclude })
+  const product = await prisma.product.create({ data: cleanOptionalStrings(data), include: productInclude })
   return serializeProduct(product)
 }
 
 export async function updateProduct(id, data) {
   await getProductById(id)
+  data = cleanOptionalStrings(data)
 
   if (data.categoryId) {
     const category = await prisma.category.findUnique({ where: { id: data.categoryId } })

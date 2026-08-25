@@ -74,8 +74,31 @@ export default function ProductDetail() {
 
           <p>{product.description}</p>
 
-          {product.stock > 0 ? (
-            <p className="product-detail__stock">Em stock: {product.stock} unidades</p>
+          {(product.brand || product.model || product.colors.length > 0) && (
+            <dl className="product-detail__specs">
+              {product.brand && (
+                <div>
+                  <dt>Marca</dt>
+                  <dd>{product.brand}</dd>
+                </div>
+              )}
+              {product.model && (
+                <div>
+                  <dt>Modelo</dt>
+                  <dd>{product.model}</dd>
+                </div>
+              )}
+              {product.colors.length > 0 && (
+                <div>
+                  <dt>Cores disponíveis</dt>
+                  <dd>{product.colors.join(', ')}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          {product.inStock ? (
+            <p className="product-detail__stock">Em stock</p>
           ) : (
             <p className="form-alert" role="alert">Esgotado</p>
           )}
@@ -85,16 +108,16 @@ export default function ProductDetail() {
               className="input"
               type="number"
               min="1"
-              max={product.stock}
+              max="99"
               value={quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
-              disabled={product.stock === 0}
+              disabled={!product.inStock}
             />
             <motion.button
               type="button"
               className="btn"
               onClick={handleAddToCart}
-              disabled={product.stock === 0}
+              disabled={!product.inStock}
               whileTap={{ scale: 0.96 }}
             >
               Adicionar ao carrinho

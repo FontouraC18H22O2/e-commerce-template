@@ -84,6 +84,12 @@ model Product {
   // desconto aplicado.
   priceCents  Int
   stock       Int      @default(0)
+  // Ficha técnica — opcionais porque nem todos os produtos têm marca/modelo
+  // (ex: uma manta de lã não tem "modelo"). colors fica vazio quando o
+  // produto não tem variantes de cor.
+  brand       String?
+  model       String?
+  colors      String[] @default([])
   // Curadoria manual para a secção de destaque da homepage — independente
   // de promoções (um produto pode estar em destaque sem ter desconto).
   featured    Boolean  @default(false)

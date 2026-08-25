@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext.jsx'
+import PasswordInput from '../components/PasswordInput.jsx'
 
 export default function Register() {
   const { register } = useAuth()
@@ -52,10 +53,9 @@ export default function Register() {
         </div>
         <div className="field">
           <label htmlFor="password">Password</label>
-          <input
+          <PasswordInput
             id="password"
             className="input"
-            type="password"
             required
             minLength={8}
             value={password}

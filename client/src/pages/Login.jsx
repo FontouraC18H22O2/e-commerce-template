@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/AuthContext.jsx'
+import PasswordInput from '../components/PasswordInput.jsx'
 
 export default function Login() {
   const { login } = useAuth()
@@ -47,10 +48,9 @@ export default function Login() {
         </div>
         <div className="field">
           <label htmlFor="password">Password</label>
-          <input
+          <PasswordInput
             id="password"
             className="input"
-            type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}

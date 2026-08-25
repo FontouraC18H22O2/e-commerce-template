@@ -4,7 +4,18 @@ import { api } from '../../services/api.js'
 import { getAdminProduct, createAdminProduct, updateAdminProduct } from '../../services/adminApi.js'
 import ProductImageManager from '../../components/admin/ProductImageManager.jsx'
 
-const emptyForm = { name: '', slug: '', description: '', price: '', stock: '0', featured: false, categoryId: '' }
+const emptyForm = {
+  name: '',
+  slug: '',
+  description: '',
+  price: '',
+  stock: '0',
+  brand: '',
+  model: '',
+  colors: '',
+  featured: false,
+  categoryId: '',
+}
 
 export default function AdminProductForm() {
   const { id } = useParams()
@@ -34,6 +45,9 @@ export default function AdminProductForm() {
           description: p.description,
           price: (p.priceCents / 100).toFixed(2),
           stock: String(p.stock),
+          brand: p.brand ?? '',
+          model: p.model ?? '',
+          colors: (p.colors ?? []).join(', '),
           featured: p.featured,
           categoryId: p.categoryId,
         })
@@ -74,6 +88,13 @@ export default function AdminProductForm() {
       description: form.description,
       priceCents: Math.round(Number(form.price) * 100),
       stock: Number(form.stock),
+      brand: form.brand,
+      model: form.model,
+      // "Preto, Branco, Azul" -> ["Preto", "Branco", "Azul"]
+      colors: form.colors
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean),
       featured: form.featured,
       categoryId: form.categoryId,
     }
@@ -162,6 +183,38 @@ export default function AdminProductForm() {
               onChange={(e) => handleChange('stock', e.target.value)}
             />
           </div>
+        </div>
+
+        <div className="admin-form__row">
+          <div className="field">
+            <label htmlFor="brand">Marca</label>
+            <input
+              id="brand"
+              className="input"
+              value={form.brand}
+              onChange={(e) => handleChange('brand', e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="model">Modelo</label>
+            <input
+              id="model"
+              className="input"
+              value={form.model}
+              onChange={(e) => handleChange('model', e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="colors">Cores disponíveis (separadas por vírgula)</label>
+          <input
+            id="colors"
+            className="input"
+            placeholder="Preto, Branco, Azul"
+            value={form.colors}
+            onChange={(e) => handleChange('colors', e.target.value)}
+          />
         </div>
 
         <div className="field">

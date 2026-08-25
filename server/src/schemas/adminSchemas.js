@@ -8,6 +8,9 @@ export const createProductSchema = z.object({
   description: z.string().trim().min(1).max(2000),
   priceCents: z.coerce.number().int().positive('O preço tem de ser maior que zero'),
   stock: z.coerce.number().int().nonnegative(),
+  brand: z.string().trim().max(100).optional().or(z.literal('')),
+  model: z.string().trim().max(100).optional().or(z.literal('')),
+  colors: z.array(z.string().trim().min(1).max(40)).optional().default([]),
   featured: z.coerce.boolean().optional(),
   categoryId: z.string().uuid('categoryId inválido'),
 })

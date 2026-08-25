@@ -36,6 +36,25 @@ export function ArrowRightIcon(props) {
   )
 }
 
+export function EyeIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+export function EyeOffIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3 3l18 18" strokeLinecap="round" />
+      <path d="M10.6 5.2A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a15.5 15.5 0 0 1-3.6 4.3M6.5 6.6C3.7 8.3 2 12 2 12s3.6 7 10 7a9.9 9.9 0 0 0 3.1-.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.9 10a3 3 0 0 0 4.1 4.1" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function TrashIcon(props) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
