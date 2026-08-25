@@ -1,4 +1,10 @@
-import { createProduct, updateProduct, deleteProduct } from '../services/productService.js'
+import {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  listProductsForAdmin,
+  getProductForAdmin,
+} from '../services/productService.js'
 import { listAllOrders, updateOrderStatus } from '../services/orderService.js'
 import {
   listPromotions,
@@ -11,6 +17,24 @@ import {
   removeProductImage,
   reorderProductImages,
 } from '../services/productImageService.js'
+
+export async function getProducts(req, res, next) {
+  try {
+    const products = await listProductsForAdmin()
+    res.json({ products })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function getProduct(req, res, next) {
+  try {
+    const product = await getProductForAdmin(req.params.id)
+    res.json({ product })
+  } catch (err) {
+    next(err)
+  }
+}
 
 export async function postProduct(req, res, next) {
   try {

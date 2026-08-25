@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import {
+  getProducts,
+  getProduct,
   postProduct,
   putProduct,
   removeProduct,
@@ -31,6 +33,8 @@ const router = Router()
 // uma vez aqui, em vez de repetir os dois middlewares em cada rota abaixo.
 router.use(requireAuth, requireAdmin)
 
+router.get('/products', getProducts)
+router.get('/products/:id', getProduct)
 router.post('/products', validate(createProductSchema), postProduct)
 router.put('/products/:id', validate(updateProductSchema), putProduct)
 router.delete('/products/:id', removeProduct)

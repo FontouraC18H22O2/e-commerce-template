@@ -51,6 +51,11 @@ export default function Navbar() {
             <Link to="/orders" className="navbar__link">
               Encomendas
             </Link>
+            {user.role === 'ADMIN' && (
+              <Link to="/admin" className="navbar__link">
+                Admin
+              </Link>
+            )}
             <span className="navbar__user">{user.name}</span>
             <button type="button" className="btn--text" onClick={handleLogout}>
               Sair

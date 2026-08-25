@@ -1,4 +1,5 @@
 import prisma from '../lib/prismaClient.js'
+import cloudinary from '../lib/cloudinaryClient.js'
 import { computeEffectivePrice, pricingInclude } from './pricingService.js'
 
 class NotFoundError extends Error {
@@ -141,6 +142,30 @@ export async function listCategories() {
   })
 }
 
+// --- leitura para o painel de admin ---
+//
+// Devolve os produtos "em bruto" (sem o preço efetivo calculado com
+// promoção) — o admin precisa sempre de ver/editar o preço BASE
+// verdadeiro, nunca o preço já com desconto que é mostrado ao público.
+
+export async function listProductsForAdmin() {
+  return prisma.product.findMany({
+    orderBy: { name: 'asc' },
+    include: { category: true, images: { orderBy: { position: 'asc' } } },
+  })
+}
+
+export async function getProductForAdmin(id) {
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: { category: true, images: { orderBy: { position: 'asc' } } },
+  })
+  if (!product) {
+    throw new NotFoundError('Produto não encontrado')
+  }
+  return product
+}
+
 // --- operações de escrita (só para o painel de admin) ---
 
 export async function createProduct(data) {
@@ -180,9 +205,16 @@ export async function updateProduct(id, data) {
 }
 
 export async function deleteProduct(id) {
-  await getProductById(id)
+  const product = await prisma.product.findUnique({ where: { id }, include: { images: true } })
+  if (!product) {
+    throw new NotFoundError('Produto não encontrado')
+  }
 
   try {
+    // Apaga primeiro na BD — se isto falhar (ex: produto com encomendas),
+    // as imagens na Cloudinary continuam intactas, o que é o resultado
+    // certo (nada foi apagado). Se apagássemos a Cloudinary primeiro e a
+    // BD falhasse a seguir, ficaríamos com um produto ativo mas sem fotos.
     await prisma.product.delete({ where: { id } })
   } catch (err) {
     // P2003: violação de foreign key — o produto está referenciado em
@@ -196,6 +228,11 @@ export async function deleteProduct(id) {
     }
     throw err
   }
+
+  // A tabela product_images já foi limpa em cascata pela BD — falta só
+  // remover os ficheiros correspondentes na Cloudinary, senão ficam lá
+  // órfãos para sempre (a pagar espaço, sem nenhum produto a referi-los).
+  await Promise.all(product.images.map((img) => cloudinary.uploader.destroy(img.publicId)))
 }
 
 async function getProductById(id) {
