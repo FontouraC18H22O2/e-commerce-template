@@ -6,6 +6,11 @@ import {
   updatePromotion,
   deletePromotion,
 } from '../services/promotionService.js'
+import {
+  addProductImage,
+  removeProductImage,
+  reorderProductImages,
+} from '../services/productImageService.js'
 
 export async function postProduct(req, res, next) {
   try {
@@ -82,6 +87,36 @@ export async function putPromotion(req, res, next) {
 export async function removePromotion(req, res, next) {
   try {
     await deletePromotion(req.params.id)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function postProductImage(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Nenhum ficheiro enviado' })
+    }
+    const image = await addProductImage(req.params.id, req.file.buffer)
+    res.status(201).json({ image })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function deleteProductImage(req, res, next) {
+  try {
+    await removeProductImage(req.params.id, req.params.imageId)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function putProductImagesOrder(req, res, next) {
+  try {
+    await reorderProductImages(req.params.id, req.body.imageIds)
     res.status(204).end()
   } catch (err) {
     next(err)

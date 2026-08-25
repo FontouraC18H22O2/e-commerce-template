@@ -9,6 +9,9 @@ import {
   postPromotion,
   putPromotion,
   removePromotion,
+  postProductImage,
+  deleteProductImage,
+  putProductImagesOrder,
 } from '../controllers/adminController.js'
 import { validate } from '../middleware/validate.js'
 import {
@@ -17,8 +20,10 @@ import {
   updateOrderStatusSchema,
   createPromotionSchema,
   updatePromotionSchema,
+  reorderImagesSchema,
 } from '../schemas/adminSchemas.js'
 import { requireAuth, requireAdmin } from '../middleware/requireAuth.js'
+import { uploadSingleImage } from '../middleware/upload.js'
 
 const router = Router()
 
@@ -29,6 +34,10 @@ router.use(requireAuth, requireAdmin)
 router.post('/products', validate(createProductSchema), postProduct)
 router.put('/products/:id', validate(updateProductSchema), putProduct)
 router.delete('/products/:id', removeProduct)
+
+router.post('/products/:id/images', uploadSingleImage('image'), postProductImage)
+router.delete('/products/:id/images/:imageId', deleteProductImage)
+router.put('/products/:id/images/order', validate(reorderImagesSchema), putProductImagesOrder)
 
 router.get('/orders', getAllOrders)
 router.patch('/orders/:id/status', validate(updateOrderStatusSchema), patchOrderStatus)

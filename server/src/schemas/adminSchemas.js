@@ -41,6 +41,10 @@ export const updatePromotionSchema = z.object({
 // muda, mas cada campo enviado continua a ser validado com as mesmas regras.
 export const updateProductSchema = createProductSchema.partial()
 
+export const reorderImagesSchema = z.object({
+  imageIds: z.array(z.string().uuid()).min(1),
+})
+
 export const updateOrderStatusSchema = z.object({
   status: z.enum(['PENDING', 'PAID', 'FAILED', 'SHIPPED', 'CANCELLED']),
 })
