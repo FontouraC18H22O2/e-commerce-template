@@ -1,5 +1,6 @@
 import prisma from '../lib/prismaClient.js'
 import stripe from '../lib/stripeClient.js'
+import { computeEffectivePrice, pricingInclude } from './pricingService.js'
 
 class OrderError extends Error {
   constructor(message, status) {
@@ -14,7 +15,14 @@ class OrderError extends Error {
 export async function createOrderFromCart(userId, items) {
   const order = await prisma.$transaction(async (tx) => {
     const productIds = items.map((item) => item.productId)
-    const products = await tx.product.findMany({ where: { id: { in: productIds } } })
+    // Inclui as relações de promoção — o preço cobrado tem de honrar
+    // qualquer desconto ativo no momento da compra, exatamente como é
+    // mostrado ao cliente no catálogo. Nunca usar product.priceCents (o
+    // preço BASE) diretamente aqui.
+    const products = await tx.product.findMany({
+      where: { id: { in: productIds } },
+      include: pricingInclude,
+    })
     const productById = new Map(products.map((p) => [p.id, p]))
 
     let totalCents = 0
@@ -30,11 +38,13 @@ export async function createOrderFromCart(userId, items) {
         throw new OrderError(`Stock insuficiente para "${product.name}"`, 409)
       }
 
-      totalCents += product.priceCents * item.quantity
+      const { priceCents: effectivePriceCents } = computeEffectivePrice(product)
+
+      totalCents += effectivePriceCents * item.quantity
       orderItemsData.push({
         productId: product.id,
         quantity: item.quantity,
-        unitPriceCents: product.priceCents,
+        unitPriceCents: effectivePriceCents,
       })
     }
 
