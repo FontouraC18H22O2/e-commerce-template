@@ -1,0 +1,110 @@
+// Schema Prisma — modelo de dados do e-commerce.
+// Ainda não ligado a nenhuma base de dados real (falta a DATABASE_URL do Railway).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  SHIPPED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("users")
+}
+
+// Tabela de sessões usada pelo connect-pg-simple (express-session).
+// A estrutura exata desta tabela é criada pelo próprio connect-pg-simple
+// via o script de setup dele, não pelas migrations do Prisma — por isso
+// não é modelada aqui como model Prisma. Fica documentado para não
+// gerar confusão mais tarde.
+
+model Category {
+  id   String @id @default(uuid())
+  name String @unique
+  slug String @unique
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String
+  // Preço guardado em cêntimos (inteiro) para evitar erros de arredondamento
+  // com números de vírgula flutuante em valores monetários.
+  priceCents  Int
+  stock       Int      @default(0)
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model Order {
+  id                    String      @id @default(uuid())
+  status                OrderStatus @default(PENDING)
+  // Total em cêntimos, calculado e guardado no momento da encomenda.
+  totalCents            Int
+  stripePaymentIntentId String?     @unique
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  items OrderItem[]
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String @id @default(uuid())
+  quantity       Int
+  // Preço unitário congelado no momento da compra — nunca referenciar
+  // o preço atual do produto, que pode ter mudado entretanto.
+  unitPriceCents Int
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}

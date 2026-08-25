@@ -1,0 +1,30 @@
+# Instruções pessoais — nunca expostas no repositório
+CLAUDE.md
+
+# Dependências
+node_modules/
+
+# Variáveis de ambiente e segredos — .env.example fica de propósito
+# (documenta as variáveis necessárias sem valores reais)
+.env
+.env.*
+!.env.example
+
+# Builds
+client/dist/
+client/dist-ssr/
+
+# Prisma
+server/prisma/*.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / SO
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.local
