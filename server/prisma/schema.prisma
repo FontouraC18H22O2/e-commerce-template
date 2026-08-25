@@ -38,17 +38,29 @@ model User {
 }
 
 // Tabela de sessões usada pelo connect-pg-simple (express-session).
-// A estrutura exata desta tabela é criada pelo próprio connect-pg-simple
-// via o script de setup dele, não pelas migrations do Prisma — por isso
-// não é modelada aqui como model Prisma. Fica documentado para não
-// gerar confusão mais tarde.
+// Modelada aqui (em vez de deixada de fora) para ficar sob controlo das
+// migrations do Prisma — a alternativa (o connect-pg-simple a criar a
+// tabela sozinho em runtime) causa "drift" sempre que corremos uma
+// migration nova, porque o Prisma não reconhece uma tabela que não veio
+// de uma migration sua. sessionStore.js usa createTableIfMissing: false.
+model Session {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire])
+  @@map("user_sessions")
+}
 
 model Category {
   id   String @id @default(uuid())
   name String @unique
   slug String @unique
 
-  products Product[]
+  products   Product[]
+  // Promoções que se aplicam a TODOS os produtos desta categoria (em vez de
+  // a produtos específicos, ver Promotion.products).
+  promotions Promotion[]
 
   @@map("categories")
 }
@@ -58,21 +70,66 @@ model Product {
   name        String
   slug        String   @unique
   description String
-  // Preço guardado em cêntimos (inteiro) para evitar erros de arredondamento
-  // com números de vírgula flutuante em valores monetários.
+  // Preço base, guardado em cêntimos (inteiro) para evitar erros de
+  // arredondamento com números de vírgula flutuante em valores monetários.
+  // O preço final mostrado ao cliente é calculado a partir daqui + qualquer
+  // promoção ativa (ver pricingService no backend) — nunca guardado já com
+  // desconto aplicado.
   priceCents  Int
   stock       Int      @default(0)
-  imageUrl    String?
+  // Curadoria manual para a secção de destaque da homepage — independente
+  // de promoções (um produto pode estar em destaque sem ter desconto).
+  featured    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
+  images     ProductImage[]
   orderItems OrderItem[]
+  promotions Promotion[]
 
   @@index([categoryId])
   @@map("products")
+}
+
+model ProductImage {
+  id       String @id @default(uuid())
+  url      String
+  // Id da Cloudinary — necessário para conseguirmos apagar a imagem lá
+  // quando ela é removida do produto (senão fica órfã a ocupar espaço).
+  publicId String
+  // Ordem de exibição na galeria: 0 = imagem principal (frente), depois
+  // lados, trás, etc.
+  position Int    @default(0)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model Promotion {
+  id              String   @id @default(uuid())
+  name            String
+  // Texto livre para o banner da homepage (ex: "Até 30% em Tecnologia").
+  description     String?
+  discountPercent Int
+  startsAt        DateTime
+  endsAt          DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Uma promoção pode aplicar-se a uma categoria inteira E/OU a produtos
+  // específicos escolhidos à mão — as duas coisas são cumulativas.
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  products   Product[]
+
+  @@index([categoryId])
+  @@map("promotions")
 }
 
 model Order {

@@ -13,5 +13,8 @@ const pool = new pg.Pool({
 export const sessionStore = new PgSession({
   pool,
   tableName: 'user_sessions',
-  createTableIfMissing: true,
+  // A tabela é criada pelas migrations do Prisma (model Session no
+  // schema.prisma), não por aqui — evita "drift" entre o Prisma e a
+  // realidade da BD sempre que corremos uma migration nova.
+  createTableIfMissing: false,
 })

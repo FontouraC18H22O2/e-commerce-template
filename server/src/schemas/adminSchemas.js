@@ -8,8 +8,33 @@ export const createProductSchema = z.object({
   description: z.string().trim().min(1).max(2000),
   priceCents: z.coerce.number().int().positive('O preço tem de ser maior que zero'),
   stock: z.coerce.number().int().nonnegative(),
-  imageUrl: z.string().trim().url().optional(),
+  featured: z.coerce.boolean().optional(),
   categoryId: z.string().uuid('categoryId inválido'),
+})
+
+export const createPromotionSchema = z
+  .object({
+    name: z.string().trim().min(2).max(150),
+    description: z.string().trim().max(300).optional(),
+    discountPercent: z.coerce.number().int().min(1).max(99),
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date(),
+    categoryId: z.string().uuid().optional(),
+    productIds: z.array(z.string().uuid()).optional().default([]),
+  })
+  .refine((data) => data.endsAt > data.startsAt, {
+    message: 'A data de fim tem de ser depois da data de início',
+    path: ['endsAt'],
+  })
+
+export const updatePromotionSchema = z.object({
+  name: z.string().trim().min(2).max(150).optional(),
+  description: z.string().trim().max(300).optional(),
+  discountPercent: z.coerce.number().int().min(1).max(99).optional(),
+  startsAt: z.coerce.date().optional(),
+  endsAt: z.coerce.date().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
+  productIds: z.array(z.string().uuid()).optional(),
 })
 
 // .partial() torna todos os campos opcionais — na edição só enviamos o que
