@@ -6,6 +6,8 @@ import {
   updateProfile,
   changeEmail,
   changePassword,
+  requestPasswordReset,
+  resetPassword,
 } from '../services/authService.js'
 
 export async function register(req, res, next) {
@@ -85,6 +87,26 @@ export async function putEmail(req, res, next) {
 export async function putPassword(req, res, next) {
   try {
     await changePassword(req.session.userId, req.body)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function forgotPassword(req, res, next) {
+  try {
+    await requestPasswordReset(req.body.email)
+    // Mesma resposta quer o email exista quer não — só quem tem acesso à
+    // caixa de correio é que sabe se recebeu alguma coisa.
+    res.json({ message: 'Se existir uma conta com esse email, foi enviado um link de recuperação.' })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function postResetPassword(req, res, next) {
+  try {
+    await resetPassword(req.body.token, req.body.newPassword)
     res.status(204).end()
   } catch (err) {
     next(err)

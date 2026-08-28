@@ -1,5 +1,13 @@
 import argon2 from 'argon2'
+import crypto from 'node:crypto'
 import prisma from '../lib/prismaClient.js'
+import { sendPasswordResetEmail } from './emailService.js'
+
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000 // 30 minutos
+
+function hashToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex')
+}
 
 // Erro de negócio simples, com status HTTP associado — o errorHandler
 // central sabe usar err.status para decidir o código de resposta.
@@ -98,4 +106,45 @@ export async function changePassword(userId, { currentPassword, newPassword }) {
 
   const passwordHash = await argon2.hash(newPassword)
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } })
+}
+
+// Pede a recuperação de password. Nunca revela se o email existe ou não —
+// tanto o caso de sucesso como o de "não existe" respondem exatamente da
+// mesma forma ao controller, para não facilitar enumeração de contas.
+export async function requestPasswordReset(email) {
+  const user = await prisma.user.findUnique({ where: { email } })
+  if (!user) return
+
+  const rawToken = crypto.randomBytes(32).toString('hex')
+  const tokenHash = hashToken(rawToken)
+
+  await prisma.passwordResetToken.create({
+    data: {
+      tokenHash,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+    },
+  })
+
+  const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${rawToken}`
+  await sendPasswordResetEmail(user.email, resetUrl)
+}
+
+export async function resetPassword(rawToken, newPassword) {
+  const tokenHash = hashToken(rawToken)
+
+  const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } })
+
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    throw new AuthError('Link de recuperação inválido ou expirado', 400)
+  }
+
+  const passwordHash = await argon2.hash(newPassword)
+
+  // Atualiza a password e marca o token como usado numa transação — um
+  // token nunca pode servir para repor a password duas vezes.
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
+  ])
 }

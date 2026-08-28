@@ -224,6 +224,24 @@ textarea {
   color: var(--color-ink-soft);
 }
 
+.auth-form__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.auth-form__forgot {
+  font-size: 0.76rem;
+  color: var(--color-ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-form__forgot:hover {
+  color: var(--color-accent);
+}
+
 .input,
 input[type='text'],
 input[type='email'],

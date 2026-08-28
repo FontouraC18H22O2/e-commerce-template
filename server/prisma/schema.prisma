@@ -39,9 +39,28 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orders Order[]
+  orders              Order[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+// Token de recuperação de password. Guardamos sempre o HASH do token
+// (nunca o valor em bruto) — o mesmo princípio de segurança das passwords:
+// se a BD algum dia vazar, ninguém consegue usar os tokens diretamente.
+// Vida curta (ver expiresAt, definido no serviço) e uso único (usedAt).
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 // Tabela de sessões usada pelo connect-pg-simple (express-session).

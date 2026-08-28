@@ -8,9 +8,11 @@ import {
   putProfile,
   putEmail,
   putPassword,
+  forgotPassword,
+  postResetPassword,
 } from '../controllers/authController.js'
 import { validate } from '../middleware/validate.js'
-import { registerSchema, loginSchema } from '../schemas/authSchemas.js'
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../schemas/authSchemas.js'
 import { updateProfileSchema, changeEmailSchema, changePasswordSchema } from '../schemas/profileSchemas.js'
 import { authLimiter } from '../middleware/rateLimiters.js'
 import { requireAuth } from '../middleware/requireAuth.js'
@@ -21,6 +23,11 @@ router.post('/register', authLimiter, validate(registerSchema), register)
 router.post('/login', authLimiter, validate(loginSchema), login)
 router.post('/logout', logout)
 router.get('/me', me)
+
+// Mesmo rate limit do login — sem isto, alguém podia usar este endpoint
+// para inundar a caixa de correio de outra pessoa com emails de reset.
+router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), forgotPassword)
+router.post('/reset-password', authLimiter, validate(resetPasswordSchema), postResetPassword)
 
 router.get('/profile', requireAuth, getProfile)
 router.put('/profile', requireAuth, validate(updateProfileSchema), putProfile)

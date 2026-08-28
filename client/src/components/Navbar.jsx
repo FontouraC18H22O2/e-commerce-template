@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
@@ -10,6 +10,12 @@ export default function Navbar() {
   const { user, logout } = useAuth()
   const { totalCount } = useCart()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // No login/registo não faz sentido pesquisar ou navegar por categorias —
+  // fica só o logótipo, como forma simples de voltar à home.
+  const authPages = ['/login', '/register', '/forgot-password', '/reset-password']
+  const isAuthPage = authPages.includes(location.pathname)
 
   async function handleLogout() {
     await logout()
@@ -22,10 +28,10 @@ export default function Navbar() {
         <Link to="/" className="navbar__logo">
           Loja
         </Link>
-        <CategoryNav />
+        {!isAuthPage && <CategoryNav />}
       </div>
 
-      <SearchBar />
+      {!isAuthPage && <SearchBar />}
 
       <nav className="navbar__links">
         <Link to="/cart" className="navbar__link">
