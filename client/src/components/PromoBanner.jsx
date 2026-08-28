@@ -31,11 +31,11 @@ export default function PromoBanner() {
         </p>
       </div>
       {promo.category ? (
-        <Link to={`/?category=${promo.category.slug}`} className="btn btn--outline">
+        <Link to={`/?category=${promo.category.slug}`} className="btn">
           Ver produtos
         </Link>
       ) : (
-        <Link to="/" className="btn btn--outline">
+        <Link to="/" className="btn">
           Ver catálogo
         </Link>
       )}

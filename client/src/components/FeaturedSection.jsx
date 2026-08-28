@@ -26,8 +26,8 @@ export default function FeaturedSection() {
         </div>
       </div>
       <motion.div className="featured__scroll" variants={gridVariants} initial="hidden" animate="show">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+        {products.map((product, i) => (
+          <ProductCard key={product.id} product={product} size={i === 0 ? 'lg' : undefined} />
         ))}
       </motion.div>
     </section>

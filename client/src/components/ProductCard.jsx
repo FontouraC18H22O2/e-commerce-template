@@ -7,11 +7,11 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } },
 }
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, size }) {
   const image = product.images?.[0]
 
   return (
-    <motion.div variants={item}>
+    <motion.div variants={item} className={size === 'lg' ? 'product-card-wrap product-card-wrap--lg' : 'product-card-wrap'}>
       <Link to={`/products/${product.slug}`} className="product-card">
         <div className="product-card__image">
           {image ? <img src={image.url} alt={product.name} /> : <div className="product-card__placeholder" />}
