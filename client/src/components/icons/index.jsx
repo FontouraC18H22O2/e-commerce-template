@@ -62,3 +62,49 @@ export function TrashIcon(props) {
     </svg>
   )
 }
+
+export function PencilIcon(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5.5 16a1 1 0 0 0-.3.5L4 20Z" strokeLinejoin="round" />
+      <path d="M13.5 8l2.5 2.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function BoxIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 8.5 12 4l8.5 4.5M3.5 8.5 12 13m-8.5-4.5v8L12 21m0-8v8m0-8 8.5-4.5m-8.5 12.5 8.5-4.5v-8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function TagIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M12.5 3.5H6a2.5 2.5 0 0 0-2.5 2.5v6.5L13 22l9-9-9.5-9.5Z" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="1.4" />
+    </svg>
+  )
+}
+
+export function ReceiptIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M6 3h12v18l-2.5-1.6L13 21l-2.5-1.6L8 21l-2-1.6V3Z" strokeLinejoin="round" />
+      <path d="M9 8h6M9 12h6M9 16h4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function GridIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
+    </svg>
+  )
+}

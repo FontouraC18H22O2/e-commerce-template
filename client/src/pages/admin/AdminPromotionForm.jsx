@@ -102,7 +102,7 @@ export default function AdminPromotionForm() {
         <Link to="/admin/promotions" className="btn--text">Voltar</Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="admin-form">
+      <form onSubmit={handleSubmit} className="admin-form admin-card">
         <div className="field">
           <label htmlFor="name">Nome</label>
           <input id="name" className="input" required value={form.name} onChange={(e) => handleChange('name', e.target.value)} />

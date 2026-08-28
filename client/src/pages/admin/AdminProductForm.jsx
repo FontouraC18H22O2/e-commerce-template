@@ -125,7 +125,7 @@ export default function AdminProductForm() {
         <Link to="/admin/products" className="btn--text">Voltar</Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="admin-form">
+      <form onSubmit={handleSubmit} className="admin-form admin-card">
         <div className="field">
           <label htmlFor="name">Nome</label>
           <input id="name" className="input" required value={form.name} onChange={(e) => handleNameChange(e.target.value)} />
@@ -244,7 +244,7 @@ export default function AdminProductForm() {
       </form>
 
       {isEditing && (
-        <div className="admin-form__images">
+        <div className="admin-form__images admin-card">
           <h2>Imagens</h2>
           <ProductImageManager productId={productId} images={images} onImagesChange={setImages} />
         </div>

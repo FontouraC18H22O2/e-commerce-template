@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listAdminPromotions, deleteAdminPromotion } from '../../services/adminApi.js'
+import { PencilIcon, TrashIcon } from '../../components/icons/index.jsx'
 
 function isActive(promo) {
   const now = new Date()
@@ -56,7 +57,7 @@ export default function AdminPromotions() {
               {promotions.map((promo) => (
                 <tr key={promo.id}>
                   <td>{promo.name}</td>
-                  <td>{promo.discountPercent}%</td>
+                  <td><span className="promo-badge">-{promo.discountPercent}%</span></td>
                   <td>
                     {promo.category ? `Categoria: ${promo.category.name}` : ''}
                     {promo.category && promo.products.length > 0 ? ' + ' : ''}
@@ -72,9 +73,16 @@ export default function AdminPromotions() {
                     </span>
                   </td>
                   <td className="admin-table__actions">
-                    <Link to={`/admin/promotions/${promo.id}/edit`} className="btn--text">Editar</Link>
-                    <button type="button" className="btn--text admin-table__danger" onClick={() => handleDelete(promo)}>
-                      Apagar
+                    <Link to={`/admin/promotions/${promo.id}/edit`} className="admin-table__icon-btn" aria-label="Editar">
+                      <PencilIcon />
+                    </Link>
+                    <button
+                      type="button"
+                      className="admin-table__icon-btn admin-table__icon-btn--danger"
+                      onClick={() => handleDelete(promo)}
+                      aria-label="Apagar"
+                    >
+                      <TrashIcon />
                     </button>
                   </td>
                 </tr>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listAdminProducts, deleteAdminProduct } from '../../services/adminApi.js'
 import { formatPrice } from '../../utils/format.js'
+import { PencilIcon, TrashIcon } from '../../components/icons/index.jsx'
 
 export default function AdminProducts() {
   const [products, setProducts] = useState(null)
@@ -40,28 +41,43 @@ export default function AdminProducts() {
           <table className="admin-table">
             <thead>
               <tr>
+                <th></th>
                 <th>Nome</th>
                 <th>Categoria</th>
                 <th>Preço</th>
                 <th>Stock</th>
                 <th>Destaque</th>
-                <th>Imagens</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {products.map((product) => (
                 <tr key={product.id}>
+                  <td>
+                    <div className="admin-table__thumb">
+                      {product.images[0] ? (
+                        <img src={product.images[0].url} alt="" />
+                      ) : (
+                        <div className="product-card__placeholder" />
+                      )}
+                    </div>
+                  </td>
                   <td>{product.name}</td>
                   <td>{product.category.name}</td>
                   <td>{formatPrice(product.priceCents)}</td>
                   <td>{product.stock}</td>
-                  <td>{product.featured ? 'Sim' : '—'}</td>
-                  <td>{product.images.length}</td>
+                  <td>{product.featured ? <span className="status-pill status-pill--paid">Sim</span> : '—'}</td>
                   <td className="admin-table__actions">
-                    <Link to={`/admin/products/${product.id}/edit`} className="btn--text">Editar</Link>
-                    <button type="button" className="btn--text admin-table__danger" onClick={() => handleDelete(product)}>
-                      Apagar
+                    <Link to={`/admin/products/${product.id}/edit`} className="admin-table__icon-btn" aria-label="Editar">
+                      <PencilIcon />
+                    </Link>
+                    <button
+                      type="button"
+                      className="admin-table__icon-btn admin-table__icon-btn--danger"
+                      onClick={() => handleDelete(product)}
+                      aria-label="Apagar"
+                    >
+                      <TrashIcon />
                     </button>
                   </td>
                 </tr>
