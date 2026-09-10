@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Ambiente local: NUNCA committar a chave
+.env
+
+# Node (caso se corra npm install localmente durante testes)
+node_modules/

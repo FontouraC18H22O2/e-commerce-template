@@ -1,0 +1,8 @@
+# SDK oficial para chamar o Claude
+anthropic
+
+# Abrir Pull Requests atraves da API do GitHub
+PyGithub
+
+# Carregar o .env em testes locais (em producao usamos os Secrets)
+python-dotenv
