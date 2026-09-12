@@ -17,10 +17,18 @@ from pathlib import Path
 class Dependency:
     """Uma dependencia declarada num projeto."""
     name: str
-    # A versao/intervalo tal como esta declarado (ex: "^1.2.3", "~4.0.0").
-    current_spec: str
-    # "prod" ou "dev": separa dependencias de producao das de desenvolvimento.
-    kind: str
+    current_spec: str   # versao/intervalo declarado (ex: "^1.2.3", "~4.0.0")
+    kind: str           # "prod" ou "dev"
+
+
+@dataclass(frozen=True)
+class UpdateCandidate:
+    """Uma dependencia analisada quanto a existencia de versao mais recente."""
+    name: str
+    kind: str                    # "prod" ou "dev"
+    current_spec: str            # tal como declarado (ex: "^1.2.3")
+    latest_version: str | None   # ultima versao publicada, ou None se desconhecida
+    bump_type: str               # "patch" | "minor" | "major" | "none" | "unknown"
 
 
 class Ecosystem(ABC):
@@ -31,16 +39,20 @@ class Ecosystem(ABC):
     com o npm ou o pip. E assim que o agente se mantem multi-linguagem.
     """
 
-    # Nome curto do ecossistema, para mensagens e logs (ex: "npm").
-    name: str
+    name: str   # nome curto do ecossistema (ex: "npm")
 
     @abstractmethod
     def read_inventory(self, project_dir: Path) -> list[Dependency]:
         """
-        Le as dependencias declaradas num projeto.
+        Le as dependencias declaradas num projeto (sem julgar nada ainda).
+        `project_dir` e a pasta absoluta onde vive o manifesto.
+        """
+        raise NotImplementedError
 
-        `project_dir` e a pasta (em caminho absoluto) onde vive o ficheiro
-        de manifesto (package.json, requirements.txt, ...). Devolve o que
-        esta declarado, sem julgar nada ainda.
+    @abstractmethod
+    def check_updates(self, deps: list[Dependency]) -> list[UpdateCandidate]:
+        """
+        Para cada dependencia, descobre a ultima versao disponivel e
+        classifica o tipo de salto (patch/minor/major). Nao aplica nada.
         """
         raise NotImplementedError
