@@ -25,10 +25,21 @@ class Dependency:
 class UpdateCandidate:
     """Uma dependencia analisada quanto a existencia de versao mais recente."""
     name: str
-    kind: str                    # "prod" ou "dev"
-    current_spec: str            # tal como declarado (ex: "^1.2.3")
-    latest_version: str | None   # ultima versao publicada, ou None se desconhecida
-    bump_type: str               # "patch" | "minor" | "major" | "none" | "unknown"
+    kind: str
+    current_spec: str
+    latest_version: str | None
+    bump_type: str      # "patch" | "minor" | "major" | "none" | "unknown"
+
+
+@dataclass(frozen=True)
+class Vulnerability:
+    """Uma vulnerabilidade conhecida reportada para um projeto."""
+    package: str          # pacote afetado (pode ser transitivo)
+    severity: str         # "low" | "moderate" | "high" | "critical" | "unknown"
+    is_direct: bool       # True se for dependencia declarada diretamente
+    fix_available: bool   # existe versao que corrige?
+    fix_is_major: bool    # a correcao implica um salto major (breaking)?
+    title: str            # descricao curta, se disponivel
 
 
 class Ecosystem(ABC):
@@ -43,16 +54,15 @@ class Ecosystem(ABC):
 
     @abstractmethod
     def read_inventory(self, project_dir: Path) -> list[Dependency]:
-        """
-        Le as dependencias declaradas num projeto (sem julgar nada ainda).
-        `project_dir` e a pasta absoluta onde vive o manifesto.
-        """
+        """Le as dependencias declaradas num projeto (sem julgar nada)."""
         raise NotImplementedError
 
     @abstractmethod
     def check_updates(self, deps: list[Dependency]) -> list[UpdateCandidate]:
-        """
-        Para cada dependencia, descobre a ultima versao disponivel e
-        classifica o tipo de salto (patch/minor/major). Nao aplica nada.
-        """
+        """Descobre versoes novas estaveis e classifica o salto. Nao aplica nada."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_vulnerabilities(self, project_dir: Path) -> list[Vulnerability]:
+        """Deteta vulnerabilidades conhecidas no projeto. Operacao read-only."""
         raise NotImplementedError

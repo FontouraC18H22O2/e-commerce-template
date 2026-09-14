@@ -1,45 +1,42 @@
 """
 Implementacao do ecossistema npm.
 
-Sabe fazer o inventario (ler package.json) e descobrir que versoes novas
-ESTAVEIS existem, consultando o registry publico do npm. Ainda nao aplica
-nada: so observa e classifica. Aplicar updates e abrir PRs vem depois.
+Sabe: (1) ler o package.json (inventario), (2) descobrir versoes novas
+ESTAVEIS via registry publico, e (3) detetar vulnerabilidades conhecidas
+via `npm audit`. Tudo read-only: observa e classifica, nao altera nada.
+Aplicar updates e abrir PRs vem nos passos seguintes.
 """
 
 from __future__ import annotations
 import json
+import shutil
+import subprocess
 import urllib.request
 import urllib.parse
 from pathlib import Path
 
-from dep_agent.ecosystems.base import Dependency, UpdateCandidate, Ecosystem
+from dep_agent.ecosystems.base import (
+    Dependency,
+    UpdateCandidate,
+    Vulnerability,
+    Ecosystem,
+)
 
 
 _REGISTRY = "https://registry.npmjs.org"
-# Versao "abreviada" do documento do pacote (bem mais pequena), que inclui
-# na mesma as dist-tags e a lista de versoes de que precisamos.
 _ABBREVIATED = "application/vnd.npm.install-v1+json"
 
 
-def _is_prerelease(version: str) -> bool:
-    """
-    True se a versao for uma pre-release (ex: 8.0.0-rc.14, 2.0.0-beta.1).
+# --- Deteccao de versoes novas -----------------------------------------------
 
-    Pela regra do semver, qualquer versao com sufixo apos '-' e uma
-    pre-release: instavel por definicao. Nunca as propomos.
-    """
+def _is_prerelease(version: str) -> bool:
+    """True se for pre-release (ex: 8.0.0-rc.14). Nunca as propomos."""
     core = version.strip().lstrip("^~>=<v ").strip()
     return "-" in core
 
 
 def _parse_version(text: str | None) -> tuple[int, int, int] | None:
-    """
-    Extrai (major, minor, patch) de uma string de versao.
-
-    Ignora prefixos de intervalo (^, ~, >=, v) e o sufixo de pre-release.
-    Devolve None para o que nao seja uma versao simples comparavel com
-    seguranca (ranges complexos, "*", aliases...).
-    """
+    """Extrai (major, minor, patch); None para versoes nao comparaveis."""
     if not text:
         return None
     cleaned = text.strip().lstrip("^~>=<v ").strip()
@@ -53,9 +50,7 @@ def _parse_version(text: str | None) -> tuple[int, int, int] | None:
         return None
 
 
-def _classify_bump(current: tuple[int, int, int],
-                   latest: tuple[int, int, int]) -> str:
-    """Classifica o salto entre duas versoes segundo o semver."""
+def _classify_bump(current, latest) -> str:
     if latest <= current:
         return "none"
     if latest[0] > current[0]:
@@ -66,21 +61,12 @@ def _classify_bump(current: tuple[int, int, int],
 
 
 def _latest_stable_from_doc(data: dict) -> str | None:
-    """
-    Determina a ultima versao ESTAVEL a partir do documento do registry.
-
-    Caminho normal: a dist-tag "latest" ja aponta para uma versao estavel.
-    Mas nem sempre - ha pacotes cujo "latest" aponta para uma release
-    candidate (o Prisma e um deles). Por isso, se a "latest" for
-    pre-release (ou nao existir), varremos a lista de versoes e escolhemos
-    a estavel mais alta. Assim nunca propomos uma pre-release por engano.
-    """
+    """Ultima versao estavel; ignora pre-releases mesmo que sejam "latest"."""
     tag = data.get("dist-tags", {}).get("latest")
     if tag and not _is_prerelease(tag):
         return tag
-
-    best: tuple[int, int, int] | None = None
-    best_str: str | None = None
+    best = None
+    best_str = None
     for ver in data.get("versions", {}).keys():
         if _is_prerelease(ver):
             continue
@@ -94,14 +80,8 @@ def _latest_stable_from_doc(data: dict) -> str | None:
 
 
 def _fetch_latest_stable(name: str, timeout: float = 10.0) -> str | None:
-    """
-    Consulta o registry do npm e devolve a ultima versao estavel publicada.
-
-    Devolve None em qualquer problema (sem rede, pacote privado, resposta
-    inesperada): preferimos "nao sei" a inventar. Nunca corre comandos -
-    e so um GET HTTP a um URL que nos proprios construimos.
-    """
-    encoded = urllib.parse.quote(name, safe="@")  # mantem "@", codifica "/"
+    """GET ao registry; devolve None em qualquer problema (nao inventa)."""
+    encoded = urllib.parse.quote(name, safe="@")
     url = f"{_REGISTRY}/{encoded}"
     req = urllib.request.Request(url, headers={"Accept": _ABBREVIATED})
     try:
@@ -112,6 +92,75 @@ def _fetch_latest_stable(name: str, timeout: float = 10.0) -> str | None:
     return _latest_stable_from_doc(data)
 
 
+# --- Deteccao de vulnerabilidades (npm audit) --------------------------------
+
+def _run_npm_audit(project_dir: Path, timeout: float = 120.0) -> dict | None:
+    """
+    Corre `npm audit --json` na pasta do projeto e devolve o JSON.
+
+    Comando FIXO, sem shell e sem interpolar input do utilizador: fecha a
+    porta a injecao de comandos. `npm audit` e read-only (le o lockfile e
+    consulta a base de avisos; nao altera ficheiros). Devolve None quando
+    nao e possivel auditar, para nunca fingirmos que esta tudo seguro.
+    """
+    if not (project_dir / "package-lock.json").is_file():
+        return None
+    npm_exe = shutil.which("npm")  # resolve npm.cmd no Windows, npm no Linux
+    if npm_exe is None:
+        return None
+    try:
+        result = subprocess.run(
+            [npm_exe, "audit", "--json"],
+            cwd=str(project_dir),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            shell=False,
+        )
+    except Exception:
+        return None
+    # `npm audit` devolve codigo != 0 quando encontra vulnerabilidades.
+    # Isso e esperado: o que nos interessa e o JSON do stdout.
+    out = (result.stdout or "").strip()
+    if not out:
+        return None
+    try:
+        return json.loads(out)
+    except json.JSONDecodeError:
+        return None
+
+
+def _parse_audit(data: dict) -> list[Vulnerability]:
+    """Converte o JSON do `npm audit` (formato npm v7+) em Vulnerability."""
+    vulns: list[Vulnerability] = []
+    for pkg, info in data.get("vulnerabilities", {}).items():
+        fix = info.get("fixAvailable", False)
+        if isinstance(fix, dict):
+            fix_available = True
+            fix_is_major = bool(fix.get("isSemVerMajor", False))
+        else:
+            fix_available = bool(fix)
+            fix_is_major = False
+
+        title = ""
+        for via in info.get("via", []):
+            if isinstance(via, dict) and via.get("title"):
+                title = str(via["title"])
+                break
+
+        vulns.append(Vulnerability(
+            package=str(pkg),
+            severity=str(info.get("severity", "unknown")),
+            is_direct=bool(info.get("isDirect", False)),
+            fix_available=fix_available,
+            fix_is_major=fix_is_major,
+            title=title,
+        ))
+    return vulns
+
+
+# --- Implementacao do contrato -----------------------------------------------
+
 class NpmEcosystem(Ecosystem):
     name = "npm"
 
@@ -119,9 +168,7 @@ class NpmEcosystem(Ecosystem):
         manifest = project_dir / "package.json"
         if not manifest.is_file():
             raise FileNotFoundError(f"Nao existe package.json em: {project_dir}")
-
         data = json.loads(manifest.read_text(encoding="utf-8"))
-
         deps: list[Dependency] = []
         for spec_key, kind in (("dependencies", "prod"), ("devDependencies", "dev")):
             for name, spec in data.get(spec_key, {}).items():
@@ -134,24 +181,25 @@ class NpmEcosystem(Ecosystem):
             latest = _fetch_latest_stable(dep.name)
             current_v = _parse_version(dep.current_spec)
             latest_v = _parse_version(latest)
-
-            if current_v is None or latest_v is None:
-                bump = "unknown"
-            else:
-                bump = _classify_bump(current_v, latest_v)
-
+            bump = "unknown" if (current_v is None or latest_v is None) \
+                else _classify_bump(current_v, latest_v)
             candidates.append(UpdateCandidate(
-                name=dep.name,
-                kind=dep.kind,
-                current_spec=dep.current_spec,
-                latest_version=latest,
-                bump_type=bump,
+                name=dep.name, kind=dep.kind, current_spec=dep.current_spec,
+                latest_version=latest, bump_type=bump,
             ))
         return candidates
 
+    def check_vulnerabilities(self, project_dir: Path) -> list[Vulnerability]:
+        data = _run_npm_audit(project_dir)
+        if data is None:
+            raise RuntimeError(
+                f"Nao foi possivel auditar {project_dir} "
+                "(falta package-lock.json, ou npm indisponivel)."
+            )
+        return _parse_audit(data)
+
 
 def _find_repo_root(start: Path) -> Path:
-    """Sobe na arvore de pastas ate a raiz do repo (a que tem .git)."""
     for folder in (start, *start.parents):
         if (folder / ".git").exists():
             return folder
@@ -159,7 +207,7 @@ def _find_repo_root(start: Path) -> Path:
 
 
 if __name__ == "__main__":
-    # Sinal de vida v2: le as dependencias e diz quais tem versao ESTAVEL nova.
+    # Sinal de vida v3: versoes novas + vulnerabilidades conhecidas.
     #   cd tools\dep-agent
     #   python -m dep_agent.ecosystems.npm
     from dep_agent import config
@@ -171,12 +219,29 @@ if __name__ == "__main__":
         project_dir = repo_root / rel_dir
         deps = npm.read_inventory(project_dir)
         updates = npm.check_updates(deps)
-
         outdated = [u for u in updates if u.bump_type in ("patch", "minor", "major")]
-        print(f"\n[{rel_dir}] {len(deps)} dependencias, {len(outdated)} com versao nova:")
-        for u in updates:
-            if u.bump_type in ("patch", "minor", "major"):
-                print(f"  {u.bump_type:<5} {u.name}: {u.current_spec} -> {u.latest_version}")
-        for u in updates:
-            if u.bump_type == "unknown":
-                print(f"  (?)   {u.name}: nao consegui verificar ({u.current_spec})")
+
+        print(f"\n[{rel_dir}] {len(deps)} dependencias, {len(outdated)} com versao nova")
+        for u in outdated:
+            print(f"  {u.bump_type:<5} {u.name}: {u.current_spec} -> {u.latest_version}")
+
+        try:
+            vulns = npm.check_vulnerabilities(project_dir)
+        except RuntimeError as err:
+            print(f"  [audit] {err}")
+            continue
+
+        if not vulns:
+            print("  [audit] sem vulnerabilidades conhecidas.")
+        else:
+            direct = sum(1 for v in vulns if v.is_direct)
+            print(f"  [audit] {len(vulns)} vulnerabilidades ({direct} diretas):")
+            for v in vulns:
+                scope = "direta" if v.is_direct else "transitiva"
+                if not v.fix_available:
+                    fix = "sem correcao"
+                elif v.fix_is_major:
+                    fix = "correcao disponivel (implica major/breaking)"
+                else:
+                    fix = "correcao disponivel"
+                print(f"    - {v.severity:<8} {v.package} ({scope}) - {fix}")
