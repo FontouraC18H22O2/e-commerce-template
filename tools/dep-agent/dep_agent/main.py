@@ -12,7 +12,7 @@ Este modulo ainda NAO altera nada nem abre PRs. So decide e mostra o
 plano. Aplicar e abrir Pull Requests vem nos passos seguintes. Manter a
 decisao separada da acao facilita a revisao e os testes.
 """
-
+import sys
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
@@ -150,13 +150,27 @@ def _print_plan(project: str, decisions: list[Decision],
 
 
 def main() -> None:
-    load_dotenv()  # local: le o .env; no Actions: os Secrets ja estao no ambiente
+    apply = "--apply" in sys.argv
+    dry_run = "--dry-run" in sys.argv
+
+    load_dotenv()
     repo_root = _find_repo_root(Path(__file__).resolve())
+
+    plans = []
     for rel_dir in config.NPM_PROJECT_DIRS:
         project_dir = repo_root / rel_dir
         decisions, leftover = build_plan_for_project(rel_dir, project_dir)
         _print_plan(rel_dir, decisions, leftover)
+        plans.append((rel_dir, project_dir, decisions, leftover))
 
+    if apply:
+        from dep_agent.github_pr import create_update_pr
+        modo = "simulacao" if dry_run else "a serio"
+        print(f"\n--- A aplicar atualizacoes seguras ({modo}) ---")
+        create_update_pr(repo_root, config.DEFAULT_BASE_BRANCH, plans, dry_run=dry_run)
+    else:
+        print("\n(Plano apenas. Corre com --apply para criar o branch e o PR, "
+              "ou --apply --dry-run para simular localmente sem enviar nada.)")
 
 if __name__ == "__main__":
     main()

@@ -235,36 +235,43 @@ class NpmEcosystem(Ecosystem):
                 "(falta package-lock.json, ou npm indisponivel)."
             )
         return _parse_audit(data)
-
+ 
     def apply_update(self, project_dir: Path, name: str,
                      to_version: str, from_spec: str) -> ApplyResult:
         manifest = project_dir / "package.json"
+        lockfile = project_dir / "package-lock.json"
+
+     # Guardamos o estado antes de mexer, para reverter se algo falhar.
+     # Assim uma atualizacao partida nunca fica no working tree.
+        manifest_backup = manifest.read_text(encoding="utf-8")
+        lock_backup = lockfile.read_text(encoding="utf-8") if lockfile.is_file() else None
+
+        def _restore() -> None:
+            manifest.write_text(manifest_backup, encoding="utf-8")
+            if lock_backup is not None:
+                lockfile.write_text(lock_backup, encoding="utf-8")
 
         new_spec = _write_new_spec(manifest, name, to_version)
         if new_spec is None:
             return ApplyResult(name, from_spec, to_version, False,
                                "Pacote nao encontrado no package.json.")
 
-        # `npm install` atualiza o lockfile e instala a nova versao.
         install = _run_npm(["install"], project_dir, timeout=300.0)
-        if install is None:
-            return ApplyResult(name, from_spec, to_version, False,
-                               "npm indisponivel.")
-        if install.returncode != 0:
-            tail = (install.stderr or install.stdout or "")[-500:]
+        if install is None or install.returncode != 0:
+            _restore()
+            tail = ((install.stderr or install.stdout or "")[-400:]) if install else "npm indisponivel"
             return ApplyResult(name, from_spec, to_version, False,
                                f"npm install falhou: {tail}")
 
-        # Se existir script de build, confirmamos que ainda compila.
         if _has_build_script(project_dir):
             build = _run_npm(["run", "build"], project_dir, timeout=600.0)
             if build is None or build.returncode != 0:
-                tail = ((build.stderr or build.stdout or "")[-500:]) if build else "npm indisponivel"
+                _restore()
+                tail = ((build.stderr or build.stdout or "")[-400:]) if build else "npm indisponivel"
                 return ApplyResult(name, from_spec, to_version, False,
                                    f"build falhou: {tail}")
 
-        return ApplyResult(name, from_spec, to_version, True,
-                           "install + build OK.")
+        return ApplyResult(name, from_spec, to_version, True, "install + build OK.")
 
 
 def _find_repo_root(start: Path) -> Path:
