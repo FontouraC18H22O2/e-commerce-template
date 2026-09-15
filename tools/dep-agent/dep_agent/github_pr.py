@@ -29,7 +29,9 @@ def _run_git(args: list[str], repo_root: Path, check: bool = True) -> subprocess
     """Corre um comando git FIXO na raiz do repo, sem shell."""
     result = subprocess.run(
         ["git", *args], cwd=str(repo_root),
-        capture_output=True, text=True, shell=False,
+        capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+        shell=False,
     )
     if check and result.returncode != 0:
         raise RuntimeError(

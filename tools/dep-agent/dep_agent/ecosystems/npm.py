@@ -103,6 +103,10 @@ def _run_npm(args: list[str], project_dir: Path, timeout: float) -> subprocess.C
     args e sempre uma lista de tokens definidos por nos (nunca input do
     utilizador interpolado), com shell=False: fecha a porta a injecao de
     comandos. Devolve None se o npm nao estiver disponivel.
+
+    encoding/errors: o npm pode emitir bytes que a codificacao antiga do
+    Windows (cp1252) nao decodifica. Forcamos UTF-8 e ignoramos bytes
+    invalidos, para o mesmo comportamento no teu PC e no Linux do Actions.
     """
     npm = _npm_exe()
     if npm is None:
@@ -113,6 +117,8 @@ def _run_npm(args: list[str], project_dir: Path, timeout: float) -> subprocess.C
             cwd=str(project_dir),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
             shell=False,
         )
