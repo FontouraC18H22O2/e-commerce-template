@@ -12,8 +12,9 @@ Este modulo ainda NAO altera nada nem abre PRs. So decide e mostra o
 plano. Aplicar e abrir Pull Requests vem nos passos seguintes. Manter a
 decisao separada da acao facilita a revisao e os testes.
 """
-import sys
+
 from __future__ import annotations
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
