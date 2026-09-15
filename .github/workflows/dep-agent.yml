@@ -4,7 +4,7 @@ name: dep-agent
 # pelo botao "Run workflow" no separador Actions.
 on:
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "0 9 * * 1"
   workflow_dispatch:
 
 # Permissoes minimas: so o que o agente precisa para abrir um PR.
