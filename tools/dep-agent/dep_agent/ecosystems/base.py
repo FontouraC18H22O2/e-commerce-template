@@ -34,12 +34,22 @@ class UpdateCandidate:
 @dataclass(frozen=True)
 class Vulnerability:
     """Uma vulnerabilidade conhecida reportada para um projeto."""
-    package: str          # pacote afetado (pode ser transitivo)
+    package: str
     severity: str         # "low" | "moderate" | "high" | "critical" | "unknown"
-    is_direct: bool       # True se for dependencia declarada diretamente
-    fix_available: bool   # existe versao que corrige?
-    fix_is_major: bool    # a correcao implica um salto major (breaking)?
-    title: str            # descricao curta, se disponivel
+    is_direct: bool
+    fix_available: bool
+    fix_is_major: bool
+    title: str
+
+
+@dataclass(frozen=True)
+class ApplyResult:
+    """Resultado de aplicar UMA atualizacao a um projeto."""
+    name: str
+    from_spec: str
+    to_version: str
+    ok: bool           # True se aplicou E install/build passaram
+    detail: str        # mensagem curta (sucesso, ou razao da falha)
 
 
 class Ecosystem(ABC):
@@ -65,4 +75,14 @@ class Ecosystem(ABC):
     @abstractmethod
     def check_vulnerabilities(self, project_dir: Path) -> list[Vulnerability]:
         """Deteta vulnerabilidades conhecidas no projeto. Operacao read-only."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def apply_update(self, project_dir: Path, name: str,
+                     to_version: str, from_spec: str) -> ApplyResult:
+        """
+        Aplica UMA atualizacao no manifesto e verifica que continua a
+        instalar e a compilar. Escreve ficheiros; deve ser chamado apenas
+        num branch isolado. Nunca faz commit nem push.
+        """
         raise NotImplementedError
