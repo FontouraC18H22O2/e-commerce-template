@@ -18,9 +18,10 @@ NPM_PROJECT_DIRS: list[str] = ["client", "server"]
 DEFAULT_BASE_BRANCH: str = "master"
 
 # Modelo usado na camada de juizo (judge.py).
-# gemini-flash-latest: alias que aponta sempre para o Flash estavel atual,
-# gratuito e mais que suficiente para avaliar risco de atualizacoes.
-JUDGE_MODEL: str = "gemini-flash-latest"
+# Flash-Lite: feito para classificacao de alto volume e baixa latencia -
+# exatamente esta tarefa. Tem os limites gratuitos mais altos e sofre
+# menos com picos de procura que o Flash de topo (que estava a dar 503).
+JUDGE_MODEL: str = "gemini-flash-lite-latest"
 
 
 # --- Politica de atualizacoes ------------------------------------------------
