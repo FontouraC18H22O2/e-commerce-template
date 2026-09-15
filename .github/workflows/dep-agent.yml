@@ -1,0 +1,46 @@
+name: dep-agent
+
+# Corre uma vez por semana (segunda, 06:00 UTC) e tambem a pedido,
+# pelo botao "Run workflow" no separador Actions.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# Permissoes minimas: so o que o agente precisa para abrir um PR.
+# Nada de acesso a mais nada. Menor privilegio possivel.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node (para npm install/build/audit)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Instalar dependencias do agente
+        run: python -m pip install -r tools/dep-agent/requirements.txt
+
+      - name: Configurar identidade do git (para o commit)
+        run: |
+          git config user.name "dep-agent[bot]"
+          git config user.email "dep-agent@users.noreply.github.com"
+
+      - name: Correr o agente
+        working-directory: tools/dep-agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m dep_agent.main --apply
