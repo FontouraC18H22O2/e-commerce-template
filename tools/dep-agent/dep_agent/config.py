@@ -17,10 +17,10 @@ NPM_PROJECT_DIRS: list[str] = ["client", "server"]
 # Branch base contra a qual os Pull Requests sao abertos.
 DEFAULT_BASE_BRANCH: str = "master"
 
-# Modelo do Claude usado na camada de juizo (judge.py).
-# Sonnet: melhor equilibrio entre capacidade e custo para ler changelogs
-# e avaliar risco, sem o preco do modelo de topo.
-ANTHROPIC_MODEL: str = "claude-sonnet-5"
+# Modelo usado na camada de juizo (judge.py).
+# gemini-flash-latest: alias que aponta sempre para o Flash estavel atual,
+# gratuito e mais que suficiente para avaliar risco de atualizacoes.
+JUDGE_MODEL: str = "gemini-flash-latest"
 
 
 # --- Politica de atualizacoes ------------------------------------------------

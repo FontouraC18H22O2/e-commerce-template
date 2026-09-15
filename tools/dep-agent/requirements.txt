@@ -1,5 +1,5 @@
-# SDK oficial para chamar o Claude
-anthropic
+# SDK oficial do Google Gemini (camada de juizo)
+google-genai
 
 # Abrir Pull Requests atraves da API do GitHub
 PyGithub

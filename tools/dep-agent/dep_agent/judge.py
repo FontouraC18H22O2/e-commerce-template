@@ -1,39 +1,51 @@
 """
 Camada de AI do agente: avaliacao de risco das atualizacoes.
 
-Recebe uma lista de UpdateCandidate e pede ao Claude um juizo sobre cada
+Recebe uma lista de UpdateCandidate e pede ao modelo um juizo sobre cada
 uma: nivel de risco, probabilidade de breaking changes, uma justificacao
 curta e uma nota pronta a por no Pull Request.
 
 Fronteira de seguranca (o coracao deste modulo):
-- O Claude RECEBE dados e DEVOLVE texto/juizo. Nunca executa nada.
-- A resposta e validada de forma defensiva: se vier malformada ou com
-  valores fora do esperado, assumimos o pior caso (risco alto) em vez de
-  confiar as cegas. Falha para o lado seguro.
+- O modelo RECEBE dados e DEVOLVE texto/juizo. Nunca executa nada.
+- A resposta e validada de forma defensiva: campo invalido cai em valor
+  seguro (risco alto). Falha para o lado seguro.
+- Se o modelo estiver indisponivel, tentamos de novo com backoff; se
+  falhar mesmo, marcamos tudo para revisao manual em vez de rebentar.
+
+O provedor de AI esta isolado na funcao _call_model: trocar de modelo
+(Gemini, Groq, Claude, ...) mexe so ai; o resto do ficheiro nao muda.
 """
 
 from __future__ import annotations
+import os
 import json
+import time
 from dataclasses import dataclass
 
-import anthropic
+from google import genai
+from google.genai import types
+from google.genai import errors as genai_errors
 
 from dep_agent import config
 from dep_agent.ecosystems.base import UpdateCandidate
 
 
-# Valores validos para o risco. Tudo o que venha fora disto vira "high".
 _ALLOWED_RISK = {"low", "medium", "high"}
+
+# Resiliencia a falhas transitorias do provedor de AI.
+_MAX_ATTEMPTS = 4          # tentativas totais antes de desistir
+_RETRY_BASE_SLEEP = 2.0    # segundos; cresce exponencialmente (2, 4, 8...)
+_RETRYABLE_CODES = {429, 503}  # rate limit e sobrecarga: vale a pena repetir
 
 
 @dataclass(frozen=True)
 class UpdateJudgment:
-    """O juizo do Claude sobre uma atualizacao concreta."""
+    """O juizo do modelo sobre uma atualizacao concreta."""
     name: str
     risk: str                 # "low" | "medium" | "high"
-    breaking_changes: bool    # True se forem provaveis breaking changes
-    rationale: str            # justificacao curta (1 frase)
-    pr_note: str              # nota pronta a incluir no Pull Request
+    breaking_changes: bool
+    rationale: str
+    pr_note: str
 
 
 _SYSTEM_PROMPT = (
@@ -68,12 +80,23 @@ def _build_user_prompt(candidates: list[UpdateCandidate]) -> str:
     return "\n".join(linhas)
 
 
+def _safe_fallback(name: str, reason: str) -> UpdateJudgment:
+    """Juizo seguro por omissao: na duvida, risco alto e revisao manual."""
+    return UpdateJudgment(
+        name=name,
+        risk="high",
+        breaking_changes=True,
+        rationale=reason,
+        pr_note="Requer revisao manual.",
+    )
+
+
 def _coerce_judgment(item: dict, fallback_name: str) -> UpdateJudgment:
     """
     Converte um elemento do JSON do modelo num UpdateJudgment validado.
 
-    Campo em falta ou invalido cai num valor seguro: risco alto e breaking
-    changes assumidas. Nunca confiamos cegamente no que o modelo devolve.
+    Campo em falta ou invalido cai num valor seguro. Nunca confiamos
+    cegamente no que o modelo devolve.
     """
     name = str(item.get("name") or fallback_name)
 
@@ -95,8 +118,9 @@ def _extract_json_array(text: str) -> list:
     """
     Isola o array JSON da resposta, de forma tolerante.
 
-    O modelo deve devolver so JSON, mas por precaucao removemos eventuais
-    cercas de markdown e apanhamos do primeiro '[' ao ultimo ']'.
+    Com response_mime_type=application/json o modelo ja devolve JSON puro,
+    mas mantemos esta rede: removemos eventuais cercas de markdown e
+    apanhamos do primeiro '[' ao ultimo ']'.
     """
     cleaned = text.strip()
     if cleaned.startswith("```"):
@@ -110,34 +134,68 @@ def _extract_json_array(text: str) -> list:
     return json.loads(cleaned[start:end + 1])
 
 
+def _call_model(system_prompt: str, user_prompt: str) -> str:
+    """
+    Unico ponto que fala com o provedor de AI. Devolve o texto da resposta.
+
+    A chave vem de GEMINI_API_KEY (nunca do codigo). Em falhas transitorias
+    (429/503) tenta de novo com pausas crescentes; num erro definitivo
+    (ex: chave invalida) desiste logo, sem insistir em vao.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("Falta a variavel de ambiente GEMINI_API_KEY.")
+
+    client = genai.Client(api_key=api_key)
+
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            response = client.models.generate_content(
+                model=config.JUDGE_MODEL,
+                contents=user_prompt,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    response_mime_type="application/json",
+                    temperature=0.2,
+                    max_output_tokens=8192,
+                ),
+            )
+            return response.text or ""
+        except genai_errors.APIError as err:
+            code = getattr(err, "code", None) or getattr(err, "status_code", None)
+            # Erro definitivo (chave errada, pedido invalido) ou ultima
+            # tentativa: nao insistimos, deixamos rebentar para cima.
+            if code not in _RETRYABLE_CODES or attempt == _MAX_ATTEMPTS:
+                raise
+            sleep_s = _RETRY_BASE_SLEEP * (2 ** (attempt - 1))
+            print(f"    modelo indisponivel (codigo {code}); nova tentativa "
+                  f"em {sleep_s:.0f}s...")
+            time.sleep(sleep_s)
+
+    # Salvaguarda: o loop devolve ou levanta antes de chegar aqui.
+    raise RuntimeError("Falha ao contactar o modelo apos varias tentativas.")
+
+
 def judge_updates(candidates: list[UpdateCandidate]) -> list[UpdateJudgment]:
     """
-    Pede ao Claude uma avaliacao de risco para todas as candidatas.
+    Pede ao modelo uma avaliacao de risco para todas as candidatas.
 
-    Faz um unico pedido com todas (mais barato e rapido que um por pacote).
-    Qualquer candidata que o modelo ignore recebe um juizo seguro por
-    omissao, para que nenhuma passe sem avaliacao.
+    Um unico pedido com todas. Se o modelo falhar por completo, NAO
+    rebentamos a execucao: devolvemos um juizo seguro para cada candidata
+    (revisao manual). Se o modelo responder mas ignorar alguma, essa
+    tambem recebe o juizo seguro. Assim nenhuma passa sem avaliacao.
     """
     if not candidates:
         return []
 
-    # anthropic.Anthropic() le a chave da variavel de ambiente
-    # ANTHROPIC_API_KEY. A chave nunca aparece em codigo.
-    client = anthropic.Anthropic()
-
-    message = client.messages.create(
-        model=config.ANTHROPIC_MODEL,
-        max_tokens=4096,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": _build_user_prompt(candidates)}],
-    )
-
-    text = "".join(
-        block.text for block in message.content
-        if getattr(block, "type", None) == "text"
-    )
-
-    raw_items = _extract_json_array(text)
+    try:
+        text = _call_model(_SYSTEM_PROMPT, _build_user_prompt(candidates))
+        raw_items = _extract_json_array(text)
+    except Exception as err:
+        print(f"    aviso: avaliacao automatica indisponivel ({err}). "
+              "Tudo marcado para revisao manual.")
+        return [_safe_fallback(c.name, "Avaliacao automatica indisponivel.")
+                for c in candidates]
 
     judgments = [
         _coerce_judgment(item, fallback_name="desconhecido")
@@ -147,27 +205,22 @@ def judge_updates(candidates: list[UpdateCandidate]) -> list[UpdateJudgment]:
     julgadas = {j.name for j in judgments}
     for c in candidates:
         if c.name not in julgadas:
-            judgments.append(UpdateJudgment(
-                name=c.name,
-                risk="high",
-                breaking_changes=True,
-                rationale="O modelo nao avaliou esta dependencia.",
-                pr_note="Requer revisao manual: sem avaliacao automatica.",
-            ))
+            judgments.append(_safe_fallback(
+                c.name, "O modelo nao avaliou esta dependencia."))
 
     return judgments
 
 
 if __name__ == "__main__":
-    # Primeiro pedido real a API: le dependencias, filtra as desatualizadas
-    # e pede ao Claude um juizo de risco. Precisa da chave no ambiente.
+    # Pedido ao Gemini: le dependencias, filtra as desatualizadas e pede
+    # um juizo de risco. Precisa da chave GEMINI_API_KEY no ambiente.
     #   cd tools\dep-agent
     #   python -m dep_agent.judge
     from pathlib import Path
     from dotenv import load_dotenv
     from dep_agent.ecosystems.npm import NpmEcosystem, _find_repo_root
 
-    load_dotenv()  # carrega o .env em execucao local; no Actions vem dos Secrets
+    load_dotenv()
 
     repo_root = _find_repo_root(Path(__file__).resolve())
     npm = NpmEcosystem()
@@ -178,7 +231,7 @@ if __name__ == "__main__":
         updates = npm.check_updates(deps)
         outdated = [u for u in updates if u.bump_type in ("patch", "minor", "major")]
 
-        print(f"\n[{rel_dir}] a avaliar {len(outdated)} atualizacoes com o Claude...")
+        print(f"\n[{rel_dir}] a avaliar {len(outdated)} atualizacoes com o modelo...")
         judgments = judge_updates(outdated)
         by_name = {j.name: j for j in judgments}
 
