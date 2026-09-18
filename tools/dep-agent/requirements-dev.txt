@@ -1,0 +1,5 @@
+# Dependencias apenas de DESENVOLVIMENTO (testes, etc.).
+# Nao sao necessarias para correr o agente em producao, por isso ficam
+# separadas do requirements.txt. O Action de producao nao as instala.
+
+pytest==9.1.1
